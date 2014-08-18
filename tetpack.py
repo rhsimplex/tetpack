@@ -12,7 +12,10 @@ def n_nearest_neighbors(structure, n, max_dist = 5.0):
     return [map(lambda d: d[0], neighbors[:n])  for neighbors in t]
 
 def simplex_volume(sites):#triple product evaluation of tetrahedral volume
-    return abs(np.dot((sites[0].coords - sites[3].coords), np.cross(sites[1].coords-sites[3].coords, sites[2].coords-sites[3].coords) ))/6.0
+    if type(sites[0]) == pm.core.sites.PeriodicSite:
+        return abs(np.dot((sites[0].coords - sites[3].coords), np.cross(sites[1].coords-sites[3].coords, sites[2].coords-sites[3].coords) ))/6.0
+    else:
+        return abs(np.dot((sites[0] - sites[3]), np.cross(sites[1]-sites[3], sites[2]-sites[3]) ))/6.0
 
 def get_tets(structure, site, neighbors, stdcutoff = 0.10, volcutoff = 2.0):#relax stdcutoff to 0.50 for more initial tetrahedra
     tets=[]
@@ -38,7 +41,7 @@ def tet_center(tet_sites):
 class tetrahedron:
     def __init__(self, tetsites):
         self.center = tet_center(tetsites)
-        self.coordinates = [site.coords for site in tetsites]
+        self.coordinates = np.array([site.coords for site in tetsites])
         #retular tetrahedron of unit volume to align with tetrahedral cell from structure
         platonic_tetrahedron = 3**(1/3.)/2.*np.array([   [ 1.0,  1.0,  1.0],
                                             [ 1.0, -1.0, -1.0],
@@ -96,5 +99,10 @@ class tetrahedron:
         #un-center tet and store coordinates
         self.fit_regular_tetrahedron = best_fit_tet + self.center
         
-        def add_to_structure(self, structure):
-            pass
+    def add_to_structure(self, structure):
+        #adds a tet as a methane molecule to a sturcture
+        structure.append('C',self.center, coords_are_cartesian = True)
+        for coord in self.fit_regular_tetrahedron:
+            structure.append('H', coord, coords_are_cartesian = True)
+    
+
