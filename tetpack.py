@@ -95,4 +95,6 @@ class tetrahedron:
         best_fit_tet = R.dot(aligned_platonic_tet.T).T
         #un-center tet and store coordinates
         self.fit_regular_tetrahedron = best_fit_tet + self.center
-    
+        
+        def add_to_structure(self, structure):
+            pass
