@@ -35,8 +35,22 @@ def get_tets(structure, site, neighbors, stdcutoff = 0.10, volcutoff = 2.0):#rel
     return tets
 
 def tet_center(tet_sites):
-    #returns CARTESIAN COORDINATES 
-    return reduce(np.add, [site.coords for site in tet_sites])/4.
+    #returns CARTESIAN COORDINATES
+    if type(tet_sites[0]) == pm.core.sites.PeriodicSite:
+        return reduce(np.add, [site.coords for site in tet_sites])/4.
+    else:
+        return reduce(np.add, [site for site in tet_sites])/4.
+
+def remove_duplicate_tets(tet_list):#remove duplicate tets from a list by center of gravity only
+    eps = 0.1
+    unique_tets = []
+    while len(tet_list) > 0:
+        temp = tet_list.pop()
+        if len(unique_tets) <= 0:
+            unique_tets += (temp,)
+        elif not any([np.linalg.norm(tet_center(temp) - tet_center(tet)) < eps for tet in unique_tets]):
+            unique_tets += (temp,)
+    return unique_tets
 
 class tetrahedron:
     def __init__(self, tetsites):
