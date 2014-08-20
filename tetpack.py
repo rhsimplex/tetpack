@@ -34,6 +34,9 @@ def get_tets(structure, site, neighbors, stdcutoff = 0.10, volcutoff = 2.0):#rel
             tets.insert(-1, (site,) + face)            
     return tets
 
+def site_in_cell(site):
+    return not any(map(lambda x: round(x,4) < 0. or round(x,4) >= 1., site.frac_coords))
+
 def tet_center(tet_sites):
     #returns CARTESIAN COORDINATES
     if type(tet_sites[0]) == pm.core.sites.PeriodicSite:
@@ -51,6 +54,70 @@ def remove_duplicate_tets(tet_list):#remove duplicate tets from a list by center
         elif not any([np.linalg.norm(tet_center(temp) - tet_center(tet)) < eps for tet in unique_tets]):
             unique_tets += (temp,)
     return unique_tets
+
+def tetrahedra_from_structure(structure, n=12, maxdist=5.0, stdcutoff=0.10, volcutoff=2.0):
+    neighbors = n_nearest_neighbors(structure, n, maxdist)
+    raw_tets = []
+    for i in range(len(structure.sites)):
+        raw_tets += get_tets(structure, structure.sites[i], neighbors[i], stdcutoff, volcutoff)
+    unique_tets = remove_duplicate_tets(raw_tets)
+    regular_tetrahedra = [tetrahedron(tet) for tet in unique_tets]
+    empty_structure = structure.copy()
+    empty_structure.remove_sites(range(len(empty_structure.sites)))
+    [tet.add_to_structure(empty_structure) for tet in regular_tetrahedra]
+    return empty_structure, regular_tetrahedra
+
+def adjust_axes(structure, a_per, b_per=False, c_per=False, alpha_per=False, beta_per=False, gamma_per=False):
+    if not b_per:
+        b_per = a_per
+    if not c_per:
+        c_per = a_per
+    
+    """
+    #Doesn't work well...use apply strain for now
+    new_a = (1. + a_per) * structure.lattice.a
+    new_b = (1. + b_per) * structure.lattice.b
+    new_c = (1. + c_per) * structure.lattice.c
+    if alpha_per:    
+        new_alpha = (1. + alpha_per) * structure.lattice.alpha
+    if beta_per:
+        new_beta  = (1. + beta_per) * structure.lattice.beta
+    if gamma_per:
+        new_gamma = (1. + gamma_per) * structure.lattice.gamma
+    """
+    centers = structure.copy()
+    old_centers = structure.copy()
+    vertices = structure.copy()
+    centers.remove_species('H')
+    old_centers.remove_species('H')
+    vertices.remove_species('C')
+
+    tets = [vertices.sites[x:x+4] for x in range(0, len(vertices.sites), 4)]
+    
+    """
+    centers.lattice.a = new_a
+    centers.lattice.b = new_b
+    centers.lattice.c = new_c
+    
+    if alpha_per:    
+        centers.lattice.alpha = new_alpha 
+    if beta_per:
+        centers.lattice.beta = new_beta 
+    if gamma_per:
+        centers.lattice.gamma = new_gamma
+    """
+    centers.apply_strain([a_per, b_per, c_per])
+
+    new_structure = centers.copy()
+    new_structure.remove_species('C')
+
+    for i in range(len(centers.sites)):
+        displacement = centers.sites[i].coords - old_centers.sites[i].coords
+        new_structure.append('C', centers.sites[i].coords, coords_are_cartesian = True)
+        for vertex in tets[i]:
+            new_structure.append('H', vertex.coords + displacement, coords_are_cartesian = True)
+
+    return new_structure
 
 class tetrahedron:
     def __init__(self, tetsites):
@@ -114,9 +181,11 @@ class tetrahedron:
         self.fit_regular_tetrahedron = best_fit_tet + self.center
         
     def add_to_structure(self, structure):
-        #adds a tet as a methane molecule to a sturcture
+        #adds a tet as a methane molecule to a sturcture IF TETRAHEDRON CENTER IS WITHIN UNIT CELL
         structure.append('C',self.center, coords_are_cartesian = True)
-        for coord in self.fit_regular_tetrahedron:
-            structure.append('H', coord, coords_are_cartesian = True)
+        if(site_in_cell(structure.sites[-1])):
+            for coord in self.fit_regular_tetrahedron:
+                structure.append('H', coord, coords_are_cartesian = True)
+        else:
+            structure.remove_sites([len(structure.sites)-1])
     
-
