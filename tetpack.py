@@ -4,6 +4,27 @@ from itertools import combinations, permutations
 from rotation_matrix import *
 from scipy.optimize import minimize
 from sys import maxint
+"""
+The tetpack module works like this:
+
+1. Start with a solid-state structure, preferably something "tetrahedral close-packed (tcp)," e.g. gamma brass(Cu5Zn8)
+2. Scan up to n nearest neighbors for each site (see function n_nearest_neighbors)
+3. Pick out "most regular" tetrahedra formed by each site and any three neighbors (get_tets)
+4. Remove duplicates (remove_duplicate_tets)
+5. Build regular tetrahedra. They are aligned to best match the tetrahedral cell they are drawn from, which of course is not regular (see the tetrahedron class)
+6. Add the perfect tetrahedra to a new periodic structure as methane -- C is the center, each H is a vertex (tetrahedron.add_to_structure)
+7. TO BE IMPLEMENTED -- compression, annealing...
+
+There is a convenience method tetrahedron_from_structure that combines steps 1-6. It takes a pymatgen structure object and returns a new structure with tetrahedra (methanes) and a list of tetrahedra objects:
+
+Example:
+
+import pymatgen as pm                                       #import pymatgen
+import tetpack                                              #import this module
+gamma = pm.read_structure('mp-1368.mson')                   #load the gamma brass structure
+tet_str, tet_reg = tetpack.tetrahedra_from_structure(gamma) #generate a new pymatgen structure (periodic) and a list of tetrahedra objects
+pm.write_structure(tet_str, 'tet_str.cif')                  #export our methane tetrahedra to a CIF so we can view it in the crystallohraphic structure program of our choice!
+"""
 
 def n_nearest_neighbors(structure, n, max_dist = 5.0):
     t = structure.get_all_neighbors(max_dist)
