@@ -1,5 +1,6 @@
 import pymatgen as pm
 import numpy as np
+import csv
 from itertools import combinations, permutations
 from rotation_matrix import *
 from scipy.optimize import minimize
@@ -140,6 +141,23 @@ def adjust_axes(structure, a_per, b_per=False, c_per=False, alpha_per=False, bet
 
     return new_structure
 
+def to_challenge_output(structure, output_path):
+    with open(output_path, 'wb') as f:
+        writer = csv.writer(f, delimiter = " ")
+        for basis in structure.lattice_vectors():
+            writer.writerow(basis)
+        vertices = structure.copy()
+        vertices.remove_species('C')
+        tets = [vertices.sites[x:x+4] for x in range(0, len(vertices.sites), 4)]
+        for tet in tets:
+            row_block = np.array([vertex.frac_coords for vertex in tet])
+            row = row_block.reshape(1,12)[0]
+            writer.writerow(row)
+
+def packing_density(structure):
+    #assumes tetrahedra are properly formed, and unit volume etc. Simply divide the number of carbons by the unit cell volume
+    return [site.specie.symbol for site in structure.sites].count('C')/structure.volume
+
 class tetrahedron:
     def __init__(self, tetsites):
         self.center = tet_center(tetsites)
@@ -200,6 +218,8 @@ class tetrahedron:
         best_fit_tet = R.dot(aligned_platonic_tet.T).T
         #un-center tet and store coordinates
         self.fit_regular_tetrahedron = best_fit_tet + self.center
+        #compute canonical order for triangles (for collision detection)
+        self.triangles = self.canonical_triangles()
         
     def add_to_structure(self, structure):
         #adds a tet as a methane molecule to a sturcture IF TETRAHEDRON CENTER IS WITHIN UNIT CELL
@@ -209,4 +229,12 @@ class tetrahedron:
                 structure.append('H', coord, coords_are_cartesian = True)
         else:
             structure.remove_sites([len(structure.sites)-1])
-    
+
+    def canonical_triangles(self):
+        #gets coordinates in canonical order for each face. important for collision detection
+        triangles = []
+        for x in combinations(range(4), 3):
+            triangles.append(self.fit_regular_tetrahedron[list(x)])
+            if np.linalg.det(triangles[-1]) < 0:
+                triangles[-1] = np.flipud(triangles[-1])
+        return triangles
