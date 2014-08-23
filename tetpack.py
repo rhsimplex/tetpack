@@ -1,7 +1,8 @@
 import pymatgen as pm
 import numpy as np
 import csv
-from itertools import combinations, permutations
+import copy
+from itertools import combinations, combinations_with_replacement, permutations
 from rotation_matrix import *
 from scipy.optimize import minimize
 from sys import maxint
@@ -59,6 +60,55 @@ def get_tets(structure, site, neighbors, stdcutoff = 0.10, volcutoff = 2.0):#rel
 def site_in_cell(site):
     return not any(map(lambda x: round(x,4) < 0. or round(x,4) >= 1., site.frac_coords))
 
+def tets_in_cell(structure, tets):
+    #takes a list of tetrahedra and removes tets which have centers outside the unitcell of structure
+    dummy_structure = structure.copy()
+    dummy_structure.remove_sites(range(len(dummy_structure.sites)))
+    in_tets = []
+    for tet in tets:
+        dummy_structure.append('C', tet.center, coords_are_cartesian = True)
+        if site_in_cell(dummy_structure[-1]):
+            in_tets.append(tet)
+    return in_tets
+
+def tet_supercell(structure, tets, cutoff=2.0):
+    #creates a 3x3 supercell, with the original tetrahedra in the middle cell
+    t = []
+    supercell = []
+    frac_cutoff_a = cutoff/structure.lattice.a
+    frac_cutoff_b = cutoff/structure.lattice.b
+    frac_cutoff_c = cutoff/structure.lattice.c
+    empty_structure = structure.copy()
+    empty_structure.remove_sites(range(len(empty_structure.sites)))
+    for x in combinations_with_replacement([-1,0,1],3):
+        for y in permutations(x,3):
+            t.append(y)
+    t = np.unique(t)
+    t = np.dot(t, structure.lattice_vectors())
+    for vec in t:
+        for tet in tets:
+            new_tet = copy.deepcopy(tet)
+            new_tet.translate(vec)
+            empty_structure.append('C', new_tet.center, coords_are_cartesian = True)
+            if empty_structure.sites[-1].frac_coords[0] < 1.+ frac_cutoff_a and\
+                    empty_structure.sites[-1].frac_coords[0] > -frac_cutoff_a and\
+                    empty_structure.sites[-1].frac_coords[1] < 1. + frac_cutoff_b and\
+                    empty_structure.sites[-1].frac_coords[1] > -frac_cutoff_b and\
+                    empty_structure.sites[-1].frac_coords[2] < 1. + frac_cutoff_c and\
+                    empty_structure.sites[-1].frac_coords[2] > -frac_cutoff_c:
+                supercell.append(new_tet)
+    return supercell
+
+def get_nearby_tets(tets, supercell_tets, radius=2.0):
+    centers = np.zeros((len(supercell_tets), 3))
+    i = 0
+    for tet in supercell_tets:
+        centers[i] = tet.center
+        i += 1
+    for tet in tets:
+        differences = centers - np.tile(tet.center, (len(centers),1))
+        np.apply_along_axis(np.linalg.norm, 1, differences)
+
 def tet_center(tet_sites):
     #returns CARTESIAN COORDINATES
     if type(tet_sites[0]) == pm.core.sites.PeriodicSite:
@@ -87,7 +137,7 @@ def tetrahedra_from_structure(structure, n=12, maxdist=5.0, stdcutoff=0.10, volc
     empty_structure = structure.copy()
     empty_structure.remove_sites(range(len(empty_structure.sites)))
     [tet.add_to_structure(empty_structure) for tet in regular_tetrahedra]
-    return empty_structure, regular_tetrahedra
+    return empty_structure, tets_in_cell(empty_structure, regular_tetrahedra)
 
 def adjust_axes(structure, a_per, b_per=False, c_per=False, alpha_per=False, beta_per=False, gamma_per=False):
     if not b_per:
@@ -157,6 +207,11 @@ def to_challenge_output(structure, output_path):
 def packing_density(structure):
     #assumes tetrahedra are properly formed, and unit volume etc. Simply divide the number of carbons by the unit cell volume
     return [site.specie.symbol for site in structure.sites].count('C')/structure.volume
+
+def tri_tri_intersect(p, q):
+    #a modified implementation of triangle-triangle intersection available at http://hal.archives-ouvertes.fr/docs/00/07/21/00/PDF/RR-4488.pdf
+    #assume p and q are already canonical order (vertices (abc) are clockwise in sense: det(abc) > 0)
+    pass
 
 class tetrahedron:
     def __init__(self, tetsites):
@@ -238,3 +293,14 @@ class tetrahedron:
             if np.linalg.det(triangles[-1]) < 0:
                 triangles[-1] = np.flipud(triangles[-1])
         return triangles
+
+    def translate(self, vec):
+        #translates regular tet and center by adding vec
+        self.center += vec
+        for coord in self.fit_regular_tetrahedron:
+            coord += vec
+        for triangle in self.triangles:
+            for coord in triangle:
+                coord += vec
+
+
