@@ -72,7 +72,7 @@ def tets_in_cell(structure, tets):
     return in_tets
 
 def tet_supercell(structure, tets, cutoff=2.0):
-    #creates a 3x3 supercell, with the original tetrahedra in the middle cell
+    #creates a 3x3 supercell, with the original tetrahedra in the middle cell. may overlap edge tetrahedra
     t = []
     supercell = []
     frac_cutoff_a = cutoff/structure.lattice.a
@@ -90,25 +90,29 @@ def tet_supercell(structure, tets, cutoff=2.0):
             new_tet = copy.deepcopy(tet)
             new_tet.translate(vec)
             empty_structure.append('C', new_tet.center, coords_are_cartesian = True)
-            if empty_structure.sites[-1].frac_coords[0] < 1.+ frac_cutoff_a and\
-                    empty_structure.sites[-1].frac_coords[0] > -frac_cutoff_a and\
+            if empty_structure.sites[-1].frac_coords[0] < 1. + frac_cutoff_a and\
+                    empty_structure.sites[-1].frac_coords[0] >= -frac_cutoff_a and\
                     empty_structure.sites[-1].frac_coords[1] < 1. + frac_cutoff_b and\
-                    empty_structure.sites[-1].frac_coords[1] > -frac_cutoff_b and\
+                    empty_structure.sites[-1].frac_coords[1] >= -frac_cutoff_b and\
                     empty_structure.sites[-1].frac_coords[2] < 1. + frac_cutoff_c and\
-                    empty_structure.sites[-1].frac_coords[2] > -frac_cutoff_c:
+                    empty_structure.sites[-1].frac_coords[2] >= -frac_cutoff_c:
                 supercell.append(new_tet)
     return supercell
 
 def get_nearby_tets(tets, supercell_tets, radius=2.0):
+    #returns indices of tets in supercell whose centers lie within the radius of the centers of tets
     centers = np.zeros((len(supercell_tets), 3))
     i = 0
+    neighbor_indices = []
     for tet in supercell_tets:
         centers[i] = tet.center
         i += 1
     for tet in tets:
         differences = centers - np.tile(tet.center, (len(centers),1))
-        np.apply_along_axis(np.linalg.norm, 1, differences)
-
+        norms = np.apply_along_axis(np.linalg.norm, 1, differences)
+        neighbor_indices.append(np.where((norms < radius) & (norms > 0.00001) )[0])
+    return neighbor_indices
+    
 def tet_center(tet_sites):
     #returns CARTESIAN COORDINATES
     if type(tet_sites[0]) == pm.core.sites.PeriodicSite:
@@ -208,16 +212,25 @@ def packing_density(structure):
     #assumes tetrahedra are properly formed, and unit volume etc. Simply divide the number of carbons by the unit cell volume
     return [site.specie.symbol for site in structure.sites].count('C')/structure.volume
 
-def tri_tri_intersect(p, q):
+def tetrahedron_collision(tet, neighbors):
+    #checks if tet collides with any neighbors, using triangle collision detection
     #a modified implementation of triangle-triangle intersection available at http://hal.archives-ouvertes.fr/docs/00/07/21/00/PDF/RR-4488.pdf
-    #assume p and q are already canonical order (vertices (abc) are clockwise in sense: det(abc) > 0)
-    pass
+    #assume triangles of tet are already canonical order (vertices (abc) are clockwise in sense: det(abc) > 0)
+    def bracket_det(a,b,c,d):
+        return np.linalg.det(np.concatenate((np.array([a,b,c,d]), np.ones((4,1))),axis = 1))
+    for face in tet.triangles:
+        for neighbor in neighbors:
+            for neighbor_face in neighbor.triangles:
+                if bracket_det(face[0], face[1], neighbor_face[0], neighbor_face[1]) <= 0.:
+                    if bracket_det(face[0], face[2], neighbor_face[2], neighbor_face[0]) <= 0.:
+                        return True
+    return False
 
 class tetrahedron:
     def __init__(self, tetsites):
         self.center = tet_center(tetsites)
         self.coordinates = np.array([site.coords for site in tetsites])
-        #retular tetrahedron of unit volume to align with tetrahedral cell from structure
+        #regular tetrahedron of unit volume to align with tetrahedral cell from structure
         platonic_tetrahedron = 3**(1/3.)/2.*np.array([   [ 1.0,  1.0,  1.0],
                                             [ 1.0, -1.0, -1.0],
                                             [-1.0,  1.0, -1.0],
