@@ -14,6 +14,9 @@ def main():
 
     #Compression increment -- compress by fixed percentage:
     compression_factor = -0.01
+    
+    #Tetrahedra become distorted due compounding numerical error. Re-regularize every n steps:
+    normalization_frequency = 5
 
     #Initialize sturcture and tetrahedra
     print 'Loading initial structure...',
@@ -33,7 +36,12 @@ def main():
 
     #Loop until collision
     collision = False
+    step = 0
     while(not collision):
+        if np.mod(step, normalization_frequency) == 0:
+            print 'Normalizing tetrahedra...',
+            [tet.regularize() for tet in current_tet_reg]
+            print 'done.'
         current_tet_str, current_tet_reg = compress(current_tet_str, current_tet_reg, compression_factor)
         print 'Packing fraction: ' + str(tetpack.packing_density(current_tet_str)) + '...',
         coll = check_collisions(current_tet_str, current_tet_reg)
@@ -44,6 +52,7 @@ def main():
             break
         else:
             print 'no collisions detected.'
+        step += 1
 
 #Compress structure by fixed percentage
 def compress(current_str, current_tet, compression_factor):

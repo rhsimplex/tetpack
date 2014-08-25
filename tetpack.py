@@ -338,3 +338,66 @@ class tetrahedron:
                 regular_tetrahedron.append(site.coords)
         self.fit_regular_tetrahedron = np.array(regular_tetrahedron)
         self.triangles = self.canonical_triangles()
+
+    def regularize(self):
+        #tetrahedra will become distorted due to compounding numerical error. this function restores a tet to regularity
+        #regular tetrahedron of unit volume to align with tetrahedral cell from structure
+        platonic_tetrahedron = 3**(1/3.)/2.*np.array([   [ 1.0,  1.0,  1.0],
+                                            [ 1.0, -1.0, -1.0],
+                                            [-1.0,  1.0, -1.0],
+                                            [-1.0, -1.0,  1.0]])
+
+        #subtract out the center
+        centered_tet = self.fit_regular_tetrahedron - self.center
+
+        #initialize a rotation matrix
+        R = np.zeros([3,3])
+
+        #shuffle input coordinates, just in case there is incoming bias
+        np.random.shuffle(centered_tet)
+        
+        #find the rotation matrix
+        R_2vect(R, platonic_tetrahedron[0], centered_tet[0])
+
+        #rotate the unit tetrahedron to align with first point
+        aligned_platonic_tet = R.dot(platonic_tetrahedron.T).T
+
+        #rotate around the primary axis (axis from origin to first point) to minimize MSE
+        #--------------------------------------------------------------------------------
+
+        #finds the minimum error over all choice of matching:
+        #   A       1
+        #  / \     / \
+        # B---C   2---3
+        #
+        #the triangles to be matched are exact up to labeling of coordinates. to find the most similarity, we should try matching any order of points (123) (132) (213) ... 
+        def min_config(plat_base, coords_base):
+            min_err = maxint
+            min_config = (0,0,0)
+            for comb in permutations(np.arange(3), 3):
+                err = sum(np.linalg.norm(plat_base[list(comb)] - coords_base, axis = 1))
+                if err < min_err:
+                    min_err = err
+                    min_config = comb
+            return err, comb
+        
+        #returns sum of errors from alignment per angle. returns the min error over all configurations
+        def error(angle):
+            Rr = np.zeros([3,3])
+            R_axis_angle(Rr, centered_tet[0], angle)
+            rotated = Rr.dot(aligned_platonic_tet.T).T
+            err, comb = min_config(aligned_platonic_tet[1:], centered_tet[1:])
+            return err
+            
+        #minimize error through rotation
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            min_angle = minimize(error, 0.0, bounds=(0.0, 2*pi)).x
+
+        #rotate coords
+        R_axis_angle(R, centered_tet[0], min_angle)
+        best_fit_tet = R.dot(aligned_platonic_tet.T).T
+        #un-center tet and store coordinates
+        self.fit_regular_tetrahedron = best_fit_tet + self.center
+        #compute canonical order for triangles (for collision detection)
+        self.triangles = self.canonical_triangles()
