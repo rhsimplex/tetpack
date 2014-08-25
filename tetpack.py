@@ -2,6 +2,7 @@ import pymatgen as pm
 import numpy as np
 import csv
 import copy
+import warnings
 from itertools import combinations, combinations_with_replacement, permutations
 from rotation_matrix import *
 from scipy.optimize import minimize
@@ -218,6 +219,8 @@ def tetrahedron_collision(tet, neighbors):
     #assume triangles of tet are already canonical order (vertices (abc) are clockwise in sense: det(abc) > 0)
     def bracket_det(a,b,c,d):
         return np.linalg.det(np.concatenate((np.array([a,b,c,d]), np.ones((4,1))),axis = 1))
+    if neighbors == []:
+        return False
     for face in tet.triangles:
         for neighbor in neighbors:
             for neighbor_face in neighbor.triangles:
@@ -228,6 +231,12 @@ def tetrahedron_collision(tet, neighbors):
 
 class tetrahedron:
     def __init__(self, tetsites):
+        #if structure is all methanes, use alternate constructor
+        if(all(np.unique([site.specie.symbol for site in tetsites]) == ['C', 'H'])):
+            self.match_methane(tetsites)
+            return
+
+        #else fit tets to structure
         self.center = tet_center(tetsites)
         self.coordinates = np.array([site.coords for site in tetsites])
         #regular tetrahedron of unit volume to align with tetrahedral cell from structure
@@ -279,7 +288,9 @@ class tetrahedron:
             return err
             
         #minimize error through rotation
-        min_angle = minimize(error, 0.0, bounds=(0.0, 2*pi)).x
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            min_angle = minimize(error, 0.0, bounds=(0.0, 2*pi)).x
 
         #rotate coords
         R_axis_angle(R, centered_tet[0], min_angle)
@@ -316,4 +327,14 @@ class tetrahedron:
             for coord in triangle:
                 coord += vec
 
-
+    def match_methane(self, sites):
+        #turns a CH4 into a tetrahedron. does no check for regularity.
+        assert(len(sites) == 5)
+        regular_tetrahedron = []
+        for site in sites:
+            if site.specie.symbol == 'C':
+                self.center = site.coords
+            else:
+                regular_tetrahedron.append(site.coords)
+        self.fit_regular_tetrahedron = np.array(regular_tetrahedron)
+        self.triangles = self.canonical_triangles()
