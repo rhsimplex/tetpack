@@ -1,6 +1,9 @@
 import pymatgen as pm
 import numpy as np
 import tetpack
+import copy
+import sys
+import os
 
 def main():
     #Filename of starting structure:
@@ -18,21 +21,39 @@ def main():
     #Tetrahedra become distorted due compounding numerical error. Re-regularize every n steps:
     normalization_frequency = 5
 
+    #Save structure every n steps:
+    save_frequency = 5
+
+    #Controls how much tetrahedra can jostle during packing
+    temp = 150.
+
+    #How many tries to fit a tetrahedra before skipping
+    resolution_max = 1000
+
+    #How far a tet can travel randomly
+    distance_max = 1.0
+
     #Initialize sturcture and tetrahedra
-    print 'Loading initial structure...',
+    print '\nLoading initial structure...',
+    sys.stdout.flush()
     initial_structure = pm.read_structure(filename)
+    path = initial_structure.composition.alphabetical_formula.replace(' ', '')
+    if not os.path.exists(path):
+        os.mkdir(path)
     print initial_structure.composition.alphabetical_formula + ' loaded.'
-    print 'Extracting tetrahedra...',
+    print '\nExtracting tetrahedra...',
+    sys.stdout.flush()
     tet_str, tet_reg = tetpack.tetrahedra_from_structure(initial_structure, stdcutoff=std_dev_cutoff)
     print str(len(tet_reg)) + ' initial tetrahedra extracted.'
 
     #Expand structure initally
-    print 'Expanding cell axes by factor of ' + str(initial_increase_factor) + '...',
+    print '\nExpanding cell axes by factor of ' + str(initial_increase_factor) + '...',
+    sys.stdout.flush()
     current_tet_str = tetpack.adjust_axes(tet_str, initial_increase_factor)
     current_tet_reg = map(tetpack.tetrahedron, [current_tet_str[5*i:5*i+5] for i in range(len(current_tet_str)/5)])
     print 'done: \na = ' + str(current_tet_str.lattice.a) + '\nb = ' + str(current_tet_str.lattice.b) + '\nc = '  + str(current_tet_str.lattice.c) 
 
-    print '\nBeginning compression loop:\n\n'
+    print '\nBeginning compression loop:'
 
     #Loop until collision
     collision = False
@@ -40,18 +61,18 @@ def main():
     while(not collision):
         if np.mod(step, normalization_frequency) == 0:
             print 'Normalizing tetrahedra...',
+            sys.stdout.flush()
             [tet.regularize() for tet in current_tet_reg]
             print 'done.'
+        if np.mod(step, save_frequency) == 0:
+            print 'Writing structure...',
+            sys.stdout.flush()
+            pm.write_structure(current_tet_str, os.path.join(path, str(step) + '.cif'))
+            print 'done.'
         current_tet_str, current_tet_reg = compress(current_tet_str, current_tet_reg, compression_factor)
-        print 'Packing fraction: ' + str(tetpack.packing_density(current_tet_str)) + '...',
-        coll = check_collisions(current_tet_str, current_tet_reg)
-        if any(coll):
-            print 'collisions detected!'
-            print 'Colliding tetrahedra: ' + ', '.join( [str(x) for x in np.where(np.array(coll)==True)])
-            return current_tet_str, current_tet_reg
-            break
-        else:
-            print 'no collisions detected.'
+        print 'Step '+ str(step) + ' packing fraction: ' + str(tetpack.packing_density(current_tet_str)) + '...',
+        sys.stdout.flush()
+        check_and_resolve_collisions(current_tet_str, current_tet_reg, temp, distance_max, resolution_max)
         step += 1
 
 #Compress structure by fixed percentage
@@ -60,12 +81,40 @@ def compress(current_str, current_tet, compression_factor):
     compressed_tet = map(tetpack.tetrahedron, [current_str[5*i:5*i+5] for i in range(len(current_str)/5)])
     return compressed_str, compressed_tet
 
-#Get vector of bools: True = tet at index i is colliding with some other tet(s), False = no collisions
-def check_collisions(current_str, current_tet):
+def check_and_resolve_collisions(current_str, current_tet, temp, distance_max, resolution_max):
     supercell = tetpack.tet_supercell(current_str, current_tet)
-    nearby_tet_indices = tetpack.get_nearby_tets(current_tet, supercell)
+    nearby_tet_indices = tetpack.get_nearby_tets(current_tet, supercell, radius=distance_max + 1.)
     coll = [tetpack.tetrahedron_collision(current_tet[i], [supercell[j] for j in nearby_tet_indices[i]]) for i in range(len(current_tet))]
-    return coll
+    if any(coll):
+        print 'collisions detected!'
+        collision_indices = np.where(np.array(coll)==True)[0]
+        np.random.shuffle(collision_indices)
+        for tet_index in collision_indices:
+            original_center = current_tet[tet_index].center
+            print 'Resolving collision (tet# ' + str(tet_index) + ')...',
+            sys.stdout.flush()
+            neighbors = [supercell[j] for j in nearby_tet_indices[tet_index]]
+            resolution_iter = 0
+            traveled = 0.0 
+            while tetpack.tetrahedron_collision(current_tet[tet_index], neighbors):
+                if resolution_iter > resolution_max:
+                    print 'Couldn\'t resolve after ' + str(resolution_max) + ' tries.  Resetting.'
+                    current_tet[tet_index].translate(original_center - current_tet[tet_index].center)
+                    resolution_iter = 0
+                if np.linalg.norm(original_center - current_tet[tet_index].center) > distance_max:
+                    print 'Tet has moved too far (' + str(np.linalg.norm(original_tet.center - current_tet[tet_index].center) ) + '). Resetting.'
+                    current_tet[tet_index].translate(original_center - current_tet[tet_index].center)     
+                    resolution_iter = 0 
+                #attempt to move tet away from neighbors
+                closest_neighbor = tetpack.nearest(current_tet[tet_index], neighbors)
+                direction = current_tet[tet_index].center - closest_neighbor.center
+                current_tet[tet_index].translate(direction/(10.*np.linalg.norm(direction)))
+                #otherwise, random movements
+                current_tet[tet_index].jostle(T = temp)
+                resolution_iter += 1
+            print 'resolved.'
+    else:
+        print 'no collisions detected.'
 
 if __name__ == "__main__":
     main()

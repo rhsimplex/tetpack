@@ -144,6 +144,17 @@ def tetrahedra_from_structure(structure, n=12, maxdist=5.0, stdcutoff=0.10, volc
     [tet.add_to_structure(empty_structure) for tet in regular_tetrahedra]
     return empty_structure, tets_in_cell(empty_structure, regular_tetrahedra)
 
+def nearest(tet, neighbors):
+#gets nearest neighbor to tet from list of tets
+    nearest_tet = neighbors[0]
+    distance = 100000.
+    for neighbor in neighbors:
+        temp_distance = np.linalg.norm(tet.center - neighbor.center)
+        if temp_distance < distance:
+            distance = temp_distance
+            nearest_tet = neighbor
+    return nearest_tet
+
 def adjust_axes(structure, a_per, b_per=False, c_per=False, alpha_per=False, beta_per=False, gamma_per=False):
     if not b_per:
         b_per = a_per
@@ -401,3 +412,27 @@ class tetrahedron:
         self.fit_regular_tetrahedron = best_fit_tet + self.center
         #compute canonical order for triangles (for collision detection)
         self.triangles = self.canonical_triangles()
+
+    def rotate(self, vertex_index, theta): 
+        #subtract out the center
+        centered_tet = self.fit_regular_tetrahedron - self.center
+
+        #initialize a rotation matrix
+        R = np.zeros([3,3])
+
+        #rotate coords
+        R_axis_angle(R, centered_tet[vertex_index], theta)
+        rotated_tet = R.dot(centered_tet.T).T
+        #un-center tet and store coordinates
+        self.fit_regular_tetrahedron = rotated_tet + self.center
+        #compute canonical order for triangles (for collision detection)
+        self.triangles = self.canonical_triangles()
+
+    def jostle(self, T=100.):
+        #translates and rotates a tetrahedron randomly, with magnitude according to temperature T
+        pars = np.random.randn(6)/float(T)
+        self.translate(pars[0:3])
+        vertices = np.random.choice(range(4), 3, replace=False)
+        for i in range(3):
+            self.rotate(vertices[i], 2*np.pi*pars[3+i])
+        self.regularize()
