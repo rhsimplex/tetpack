@@ -3,6 +3,7 @@ import numpy as np
 import csv
 import copy
 import warnings
+import ewald
 from itertools import combinations, combinations_with_replacement, permutations
 from rotation_matrix import *
 from scipy.optimize import minimize
@@ -28,6 +29,38 @@ gamma = pm.read_structure('mp-1368.mson')                   #load the gamma bras
 tet_str, tet_reg = tetpack.tetrahedra_from_structure(gamma) #generate a new pymatgen structure (periodic) and a list of tetrahedra objects
 pm.write_structure(tet_str, 'tet_str.cif')                  #export our methane tetrahedra to a CIF so we can view it in the crystallohraphic structure program of our choice!
 """
+def ewald_relaxation(structure, max_steps=3, motion_factor = 0.01):
+    #attempt to relax structure via computing ewald forces, moving coordinates, etc.
+    ions = structure.copy()
+    ions.remove_species('H')
+    ions.add_oxidation_state_by_element({'C':1})
+
+    es = ewald.EwaldSummation(ions)
+    
+    for i in range(max_steps):
+        print "Total Energy: " + str(es.total_energy)
+        disp_vec = motion_factor*es.forces
+        ions_pos_current = [x.coords for x in ions.sites] + disp_vec
+        ions_updated = ions.copy()
+        ions_updated.remove_oxidation_states()
+        ions_updated.remove_species('C')
+        for pos in ions_pos_current:
+            ions_updated.append('C', pos, coords_are_cartesian = True)
+        ions_updated.add_oxidation_state_by_element({'C':1})
+        es = ewald.EwaldSummation(ions_updated)
+        ions = ions_updated.copy()
+    ions.remove_oxidation_states()
+    hydrogens = structure.copy()
+    hydrogens.remove_species('C')
+    return_str = hydrogens.copy()
+    return_str.remove_species('H')
+    for i in range(len(ions.sites)):
+        hydrogen_group = hydrogens[4*i:4*i+4]
+        t = ions[i].coords - structure[5*i].coords
+        return_str.append('C', ions[i].coords, coords_are_cartesian = True)
+        for hydrogen in hydrogen_group:
+            return_str.append('H', hydrogen.coords + t, coords_are_cartesian = True)
+    return return_str
 
 def n_nearest_neighbors(structure, n, max_dist = 5.0):
     t = structure.get_all_neighbors(max_dist)
@@ -337,6 +370,7 @@ class tetrahedron:
         for triangle in self.triangles:
             for coord in triangle:
                 coord += vec
+        self.triangles = self.canonical_triangles()
 
     def match_methane(self, sites):
         #turns a CH4 into a tetrahedron. does no check for regularity.
@@ -428,11 +462,12 @@ class tetrahedron:
         #compute canonical order for triangles (for collision detection)
         self.triangles = self.canonical_triangles()
 
-    def jostle(self, T=100.):
+    def jostle(self, T=100., rotation_only = False):
         #translates and rotates a tetrahedron randomly, with magnitude according to temperature T
         pars = np.random.randn(6)/float(T)
-        self.translate(pars[0:3])
-        vertices = np.random.choice(range(4), 3, replace=False)
+        if not rotation_only:
+            self.translate(pars[0:3])
         for i in range(3):
+            vertices = np.random.choice(range(4), 3, replace=False)
             self.rotate(vertices[i], 2*np.pi*pars[3+i])
         self.regularize()
