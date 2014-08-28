@@ -5,9 +5,8 @@ import copy
 import sys
 import os
 
-def main():
-    #Filename of starting structure:
-    filename = 'mp-1368.mson'
+def main(filename = 'mp-1368.mson'):
+    #Filename of starting structure
 
     #Cutoff for tetrahedron distortion -- higher numbers will accept more distorted tetrahedra
     std_dev_cutoff = 0.50
@@ -25,10 +24,10 @@ def main():
     save_frequency = 5
 
     #Controls how much tetrahedra can jostle during packing
-    temp = 150.
+    temp = 100.
 
     #How many tries to fit a tetrahedra before skipping
-    resolution_max = 10000
+    resolution_max = 5000
 
     #How far a tet can travel randomly
     distance_max = 1.0
@@ -55,7 +54,7 @@ def main():
 
     print '\nRelaxing structure via Ewald summation...'
     sys.stdout.flush()
-    current_tet_str = tetpack.ewald_relaxation(current_tet_str, max_steps = 5)
+    current_tet_str = tetpack.ewald_relaxation(current_tet_str, max_steps = 10)
 
     print '\nBeginning compression loop:'
 
@@ -68,11 +67,6 @@ def main():
             sys.stdout.flush()
             [tet.regularize() for tet in current_tet_reg]
             print 'done.'
-        if np.mod(step, save_frequency) == 0:
-            print 'Writing structure...',
-            sys.stdout.flush()
-            pm.write_structure(current_tet_str, os.path.join(path, str(step) + '.cif'))
-            print 'done.'
         current_tet_str, current_tet_reg = compress(current_tet_str, current_tet_reg, compression_factor)
         print 'Step '+ str(step) + ' packing fraction: ' + str(tetpack.packing_density(current_tet_str)) + '...',
         sys.stdout.flush()
@@ -80,13 +74,20 @@ def main():
         if failed:
             print 'Relaxing structure...',
             sys.stdout.flush()
-            current_tet_str, current_tet_reg = compress(current_tet_str, current_tet_reg, -compression_factor)
+            current_tet_str, current_tet_reg = compress(current_tet_str, current_tet_reg, -1.5*compression_factor)
             print 'done. Packing fraction: ' + str(tetpack.packing_density(current_tet_str))
             print 'Single-step Ewald relaxation...'
             sys.stdout.flush()
-            current_tet_str = tetpack.ewald_relaxation(current_tet_str, max_steps = 1)
+            current_tet_str = tetpack.ewald_relaxation(current_tet_str, max_steps = 2)
             print 'done.'
             failed = False
+        else:
+            if np.mod(step, save_frequency) == 0:
+                print 'Writing structure...',
+                sys.stdout.flush()
+                pm.write_structure(current_tet_str, os.path.join(path, str(step) + '.cif'))
+                print 'done.'
+
         step += 1
 
 #Compress structure by fixed percentage
@@ -132,7 +133,7 @@ def check_and_resolve_collisions(current_str, current_tet, temp, distance_max, r
                 #direction = current_tet[tet_index].center - closest_neighbor.center
                 #current_tet[tet_index].translate(direction/(10.*np.linalg.norm(direction)))
                 #otherwise, random movements
-                current_tet[tet_index].jostle(T = temp,rotation_only=True)
+                current_tet[tet_index].jostle(T = temp,rotation_only=False)
                 resolution_iter += 1
             print 'resolved.'
     else:
@@ -140,4 +141,4 @@ def check_and_resolve_collisions(current_str, current_tet, temp, distance_max, r
     return failed
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1])
