@@ -58,3 +58,4 @@ Attributions:
 2. This program relies heavily on the pymatgen (pymatgen.org) library, and the initial structures were pulled from the Materials Project (materialsproject.org).
 3. rotation_matrix.py is part of the relax package written by Edward d'Auvergne.
 4. ewald.py is part of pymatgen but not included with the default build, so it's included separately here. Written by Shyue Ping Ong and William Davidson Richard.
+5. The tetrahedra collision detection is based on the triangle intersection algorithm of Devillers and Guigue  (http://hal.archives-ouvertes.fr/docs/00/07/21/00/PDF/RR-4488.pdf)
