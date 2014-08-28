@@ -24,8 +24,8 @@ $ python compression.py
 
 Or if you prefer to run in ipython:
 
->>import compression
->>compression.main()
+In[1]: import compression
+In[2]: compression.main()
 
 The compression script runs indefinitely. Resolved packings will be output into a subdirectory named after the original structure (.cif and .csv).
 
@@ -41,7 +41,7 @@ $ python compression.py mp-196.mson
 
 or in ipython:
 
->>compression.main('mp-196.mson')
+In[1]: compression.main('mp-196.mson')
 
 =======
 Missing Features/Future improvements:
