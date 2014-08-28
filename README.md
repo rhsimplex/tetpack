@@ -33,7 +33,7 @@ Three structures are included (in pymatgen .mson format):
 * mp-1368.mson -- Cu5Zn8 "cell-centered packing"
 * mp-196.mson -- Al5Co2 "face-centered packing"
 * mp-30784.mson -- Mg2Zn11 "vertex-centered packing"
-(Missing: edge-centered packing)
+* (Missing: edge-centered packing)
 
 To run with an alternative structure use, e.g.:
 ```
