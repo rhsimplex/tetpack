@@ -20,13 +20,13 @@ Installation and running:
 
 You will need the pymatgen library (pymatgen.org) installed.  Clone this repository. You should be able to run the tetrahedra extraction and collision function on the default structure (Cu5Zn8) with:
 
-$ python compression.py
+  $ python compression.py
 
 Or if you prefer to run in ipython:
 
-In[1]: import compression
+  In[1]: import compression
 
-In[2]: compression.main()
+  In[2]: compression.main()
 
 The compression script runs indefinitely. Resolved packings will be output into a subdirectory named after the original structure (.cif and .csv).
 
@@ -38,11 +38,11 @@ mp-30784.mson -- Mg2Zn11 "vertex-centered packing"
 
 To run with an alternative structure use, e.g.:
 
-$ python compression.py mp-196.mson
+  $ python compression.py mp-196.mson
 
 or in ipython:
 
-In[1]: compression.main('mp-196.mson')
+  In[1]: compression.main('mp-196.mson')
 
 =======
 Missing Features/Future improvements:
