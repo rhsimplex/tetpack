@@ -25,6 +25,7 @@ $ python compression.py
 Or if you prefer to run in ipython:
 
 In[1]: import compression
+
 In[2]: compression.main()
 
 The compression script runs indefinitely. Resolved packings will be output into a subdirectory named after the original structure (.cif and .csv).
