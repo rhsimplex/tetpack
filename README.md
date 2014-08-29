@@ -18,7 +18,7 @@ Currently, this algorithm hits a wall around 10% packing density.  A number of p
 =======
 Installation and running:
 
-You will need the pymatgen library (pymatgen.org) installed.  Clone this repository. You should be able to run the tetrahedra extraction and collision function on the default structure (Cu5Zn8) with:
+You will need the pymatgen library (http://pymatgen.org) installed.  Clone this repository. You should be able to run the tetrahedra extraction and collision function on the default structure (Cu5Zn8) with:
 ```
 $ python compression.py
 ```
@@ -56,7 +56,7 @@ Missing Features/Future improvements:
 Attributions:
 
 1. Starting from real TCP crystal structures was inspired by my own thesis research (https://www.dropbox.com/s/vte7zpx59gaqdme/thesis.pdf?dl=0).
-2. This program relies heavily on the pymatgen (pymatgen.org) library, and the initial structures were pulled from the Materials Project (materialsproject.org).
+2. This program relies heavily on the pymatgen (http://pymatgen.org) library, and the initial structures were pulled from the Materials Project (http://materialsproject.org).
 3. rotation_matrix.py is part of the relax package written by Edward d'Auvergne.
 4. ewald.py is part of pymatgen but not included with the default build, so it's included separately here. Written by Shyue Ping Ong and William Davidson Richard.
 5. The tetrahedra collision detection is based on the triangle intersection algorithm of Devillers and Guigue  (http://hal.archives-ouvertes.fr/docs/00/07/21/00/PDF/RR-4488.pdf)
