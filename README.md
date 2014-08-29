@@ -13,7 +13,7 @@ This program attempts to pack tetrahdra starting from real solid-state structure
 6. If collisions cannot be resolved, relax structure -- increase cell axes and relax via Ewald summation.
 7. Go to step 4.
 
-Currently, this algorithm hits a wall around 10% packing density.  A number of possible improvements are described at the end of this document.
+Currently, this algorithm hits a wall around 10% packing density (see https://github.com/rhsimplex/tetpack/blob/master/tetpack_results.pdf).  A number of possible improvements are described at the end of this document.
 
 =======
 Installation and running:
