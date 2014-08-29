@@ -86,6 +86,7 @@ def main(filename = 'mp-1368.mson'):
                 print 'Writing structure...',
                 sys.stdout.flush()
                 pm.write_structure(current_tet_str, os.path.join(path, str(step) + '.cif'))
+                tetpack.to_challenge_output(current_tet_str, os.path.join(path, str(step) + '.csv'))
                 print 'done.'
 
         step += 1
