@@ -49,7 +49,8 @@ Missing Features/Future improvements:
 1. Currently the compression loop contains no cooling profile -- that is, as the structure becomes more compressed, the allowed random motion/rotation of tetrahedra does not decrease. Neither does the Ewald relaxation step get smaller.
 2. Cell axes/angles cannot vary freely in this implementation, but only for simplicity.  Since symmetry is immediately broken by tetrahedra moving around, axes/angles ought to be able to move freely.
 3. Compression could be more Metropolis-like: any configuration resulting in collisions is currently rejected, but could be accepted with some probability related to the packing density change.
-4. ...
+4. Supercells.  The current best tetrahedral packings are non-periodic.
+5. ...
 
 =======
 Attributions:
