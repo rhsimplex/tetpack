@@ -40,7 +40,7 @@ def ewald_relaxation(structure, max_steps=3, motion_factor = 1.):
     ions.add_oxidation_state_by_element({'C':1})
 
     es = ewald.EwaldSummation(ions)
-    
+    print 'Avg. distance: ' + str(np.apply_along_axis(np.linalg.norm, 1, motion_factor/10.*es.forces).mean())
     for i in range(max_steps):
         print "Total Energy: " + str(es.total_energy)
         disp_vec = motion_factor/10.*es.forces

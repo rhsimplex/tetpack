@@ -101,7 +101,12 @@ def R_2vect(R, vector_orig, vector_fin):
     z = axis[2]
 
     # The rotation angle.
-    angle = acos(dot(vector_orig, vector_fin))
+    d = dot(vector_orig, vector_fin)
+    if(d < -1.0):
+        d = -1.0
+    if(d > 1.0):
+        d= 1.0
+    angle = acos(d)
 
     # Trig functions (only need to do this maths once!).
     ca = cos(angle)

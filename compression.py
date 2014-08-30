@@ -5,7 +5,7 @@ import copy
 import sys
 import os
 
-def main(filename = 'mp-1368.mson', random=False, beta = 1.0, initial_temp = 1.0):
+def main(filename = 'mp-1368.mson', beta = 1.0, initial_temp = 1.0):
     def temperature(phi_, beta_, initial_temp_):
         #cooling profile. returns a temperature according to initial_temp*exp(-beta*phi), where phi is the current packing fraction, and beta is a free parameter
         return initial_temp_*np.exp(-beta_*phi_)
@@ -24,7 +24,7 @@ def main(filename = 'mp-1368.mson', random=False, beta = 1.0, initial_temp = 1.0
     normalization_frequency = 1
 
     #Save structure every n steps:
-    save_frequency = 5
+    save_frequency = 1
 
     #Controls how much tetrahedra can jostle during packing
     temp = 1.
@@ -111,7 +111,7 @@ def check_and_resolve_collisions(current_str, current_tet, temp, distance_max, r
     if any(coll):
         print 'collisions detected!'
         collision_indices = np.where(np.array(coll)==True)[0]
-        np.random.shuffle(collision_indices)
+        np.random.shuffle(collision_indices) 
         for tet_index in collision_indices:
             original_center = current_tet[tet_index].center
             original_vertices = current_tet[tet_index].fit_regular_tetrahedron
@@ -139,7 +139,9 @@ def check_and_resolve_collisions(current_str, current_tet, temp, distance_max, r
                 #closest_neighbor = tetpack.nearest(current_tet[tet_index], neighbors)
                 #direction = current_tet[tet_index].center - closest_neighbor.center
                 #current_tet[tet_index].translate(direction/(10.*np.linalg.norm(direction)))
-                #otherwise, random movements
+                #otherwise, random movements                
+                current_tet[tet_index].center = original_center
+                current_tet[tet_index].fit_regular_tetrahedron = original_vertices
                 current_tet[tet_index].jostle(temp, rotation_only=False)
                 resolution_iter += 1
             print 'resolved.'
