@@ -5,7 +5,10 @@ import copy
 import sys
 import os
 
-def main(filename = 'mp-1368.mson'):
+def main(filename = 'mp-1368.mson', random=False, beta = 1.0, initial_temp = 1.0):
+    def temperature(phi_, beta_, initial_temp_):
+        #cooling profile. returns a temperature according to initial_temp*exp(-beta*phi), where phi is the current packing fraction, and beta is a free parameter
+        return initial_temp_*np.exp(-beta_*phi_)
     #Filename of starting structure
 
     #Cutoff for tetrahedron distortion -- higher numbers will accept more distorted tetrahedra
@@ -18,13 +21,13 @@ def main(filename = 'mp-1368.mson'):
     compression_factor = -0.01
     
     #Tetrahedra become distorted due compounding numerical error. Re-regularize every n steps:
-    normalization_frequency = 5
+    normalization_frequency = 1
 
     #Save structure every n steps:
     save_frequency = 5
 
     #Controls how much tetrahedra can jostle during packing
-    temp = 100.
+    temp = 1.
 
     #How many tries to fit a tetrahedra before skipping
     resolution_max = 5000
@@ -36,7 +39,7 @@ def main(filename = 'mp-1368.mson'):
     print '\nLoading initial structure...',
     sys.stdout.flush()
     initial_structure = pm.read_structure(filename)
-    path = initial_structure.composition.alphabetical_formula.replace(' ', '')
+    path = initial_structure.composition.alphabetical_formula.replace(' ', '') + '_beta_' + str(beta) + '_T_' + str(initial_temp) 
     if not os.path.exists(path):
         os.mkdir(path)
     print initial_structure.composition.alphabetical_formula + ' loaded.'
@@ -52,9 +55,10 @@ def main(filename = 'mp-1368.mson'):
     current_tet_reg = map(tetpack.tetrahedron, [current_tet_str[5*i:5*i+5] for i in range(len(current_tet_str)/5)])
     print 'done: \na = ' + str(current_tet_str.lattice.a) + '\nb = ' + str(current_tet_str.lattice.b) + '\nc = '  + str(current_tet_str.lattice.c) 
 
+    phi = tetpack.packing_density(current_tet_str)
     print '\nRelaxing structure via Ewald summation...'
     sys.stdout.flush()
-    current_tet_str = tetpack.ewald_relaxation(current_tet_str, max_steps = 10)
+    current_tet_str = tetpack.ewald_relaxation(current_tet_str, max_steps = 1, motion_factor = temperature(phi, beta, initial_temp))
 
     print '\nBeginning compression loop:'
 
@@ -62,23 +66,25 @@ def main(filename = 'mp-1368.mson'):
     collision = False
     step = 0
     while(not collision):
+        phi = tetpack.packing_density(current_tet_str)
         if np.mod(step, normalization_frequency) == 0:
             print 'Normalizing tetrahedra...',
             sys.stdout.flush()
             [tet.regularize() for tet in current_tet_reg]
             print 'done.'
         current_tet_str, current_tet_reg = compress(current_tet_str, current_tet_reg, compression_factor)
-        print 'Step '+ str(step) + ' packing fraction: ' + str(tetpack.packing_density(current_tet_str)) + '...',
+        print 'Step '+ str(step) + ' packing fraction: ' + str(phi) + '...',
         sys.stdout.flush()
-        failed = check_and_resolve_collisions(current_tet_str, current_tet_reg, temp, distance_max, resolution_max)
+        failed = check_and_resolve_collisions(current_tet_str, current_tet_reg, temperature(phi, beta, initial_temp), distance_max, resolution_max)
         if failed:
             print 'Relaxing structure...',
             sys.stdout.flush()
             current_tet_str, current_tet_reg = compress(current_tet_str, current_tet_reg, -1.5*compression_factor)
-            print 'done. Packing fraction: ' + str(tetpack.packing_density(current_tet_str))
+            phi = tetpack.packing_density(current_tet_str)
+            print 'done. Packing fraction: ' + str(phi)
             print 'Single-step Ewald relaxation...'
             sys.stdout.flush()
-            current_tet_str = tetpack.ewald_relaxation(current_tet_str, max_steps = 2)
+            current_tet_str = tetpack.ewald_relaxation(current_tet_str, max_steps = 1, motion_factor = temperature(phi, beta, initial_temp))
             print 'done.'
             failed = False
         else:
@@ -134,7 +140,7 @@ def check_and_resolve_collisions(current_str, current_tet, temp, distance_max, r
                 #direction = current_tet[tet_index].center - closest_neighbor.center
                 #current_tet[tet_index].translate(direction/(10.*np.linalg.norm(direction)))
                 #otherwise, random movements
-                current_tet[tet_index].jostle(T = temp,rotation_only=False)
+                current_tet[tet_index].jostle(temp, rotation_only=False)
                 resolution_iter += 1
             print 'resolved.'
     else:

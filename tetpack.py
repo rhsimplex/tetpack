@@ -29,7 +29,11 @@ gamma = pm.read_structure('mp-1368.mson')                   #load the gamma bras
 tet_str, tet_reg = tetpack.tetrahedra_from_structure(gamma) #generate a new pymatgen structure (periodic) and a list of tetrahedra objects
 pm.write_structure(tet_str, 'tet_str.cif')                  #export our methane tetrahedra to a CIF so we can view it in the crystallohraphic structure program of our choice!
 """
-def ewald_relaxation(structure, max_steps=3, motion_factor = 0.01):
+def random_configuration(structure, n_tets):
+    #randomly distributes n_tets tetrahedra in structure
+    pass
+
+def ewald_relaxation(structure, max_steps=3, motion_factor = 1.):
     #attempt to relax structure via computing ewald forces, moving coordinates, etc.
     ions = structure.copy()
     ions.remove_species('H')
@@ -39,7 +43,7 @@ def ewald_relaxation(structure, max_steps=3, motion_factor = 0.01):
     
     for i in range(max_steps):
         print "Total Energy: " + str(es.total_energy)
-        disp_vec = motion_factor*es.forces
+        disp_vec = motion_factor/10.*es.forces
         ions_pos_current = [x.coords for x in ions.sites] + disp_vec
         ions_updated = ions.copy()
         ions_updated.remove_oxidation_states()
@@ -462,12 +466,20 @@ class tetrahedron:
         #compute canonical order for triangles (for collision detection)
         self.triangles = self.canonical_triangles()
 
-    def jostle(self, T=100., rotation_only = False):
+    def jostle(self, T=1., rotation_only = False):
         #translates and rotates a tetrahedron randomly, with magnitude according to temperature T
-        pars = np.random.randn(6)/float(T)
+        pars = float(T)*np.random.randn(6)
         if not rotation_only:
             self.translate(pars[0:3])
         for i in range(3):
             vertices = np.random.choice(range(4), 3, replace=False)
             self.rotate(vertices[i], 2*np.pi*pars[3+i])
         self.regularize()
+
+class dimer:
+    def __init__(self, center, axial_direction, first_vertex_direction):
+        pass
+
+class barrelan:
+    def __init__(self, center, axial_direction, first_vertex_direction):
+        pass
