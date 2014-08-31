@@ -5,7 +5,7 @@ import copy
 import sys
 import os
 
-def main(filename = 'mp-1368.mson', beta = 1.0, initial_temp = 1.0):
+def main(filename = 'mp-1368.mson', beta = 1.0, initial_temp = 1.0, precomputed_structure = False):
     def temperature(phi_, beta_, initial_temp_):
         #cooling profile. returns a temperature according to initial_temp*exp(-beta*phi), where phi is the current packing fraction, and beta is a free parameter
         return initial_temp_*np.exp(-beta_*phi_)
@@ -39,27 +39,33 @@ def main(filename = 'mp-1368.mson', beta = 1.0, initial_temp = 1.0):
     print '\nLoading initial structure...',
     sys.stdout.flush()
     initial_structure = pm.read_structure(filename)
-    path = initial_structure.composition.alphabetical_formula.replace(' ', '') + '_beta_' + str(beta) + '_T_' + str(initial_temp) 
-    if not os.path.exists(path):
-        os.mkdir(path)
-    print initial_structure.composition.alphabetical_formula + ' loaded.'
-    print '\nExtracting tetrahedra...',
-    sys.stdout.flush()
-    tet_str, tet_reg = tetpack.tetrahedra_from_structure(initial_structure, stdcutoff=std_dev_cutoff)
-    print str(len(tet_reg)) + ' initial tetrahedra extracted.'
+    if not precomputed_structure:
+        path = initial_structure.composition.alphabetical_formula.replace(' ', '') + '_beta_' + str(beta) + '_T_' + str(initial_temp) 
+        if not os.path.exists(path):
+            os.mkdir(path)
+        print initial_structure.composition.alphabetical_formula + ' loaded.'
+        print '\nExtracting tetrahedra...',
+        sys.stdout.flush()
+        tet_str, tet_reg = tetpack.tetrahedra_from_structure(initial_structure, stdcutoff=std_dev_cutoff)
+        print str(len(tet_reg)) + ' initial tetrahedra extracted.'
 
-    #Expand structure initally
-    print '\nExpanding cell axes by factor of ' + str(initial_increase_factor) + '...',
-    sys.stdout.flush()
-    current_tet_str = tetpack.adjust_axes(tet_str, initial_increase_factor)
-    current_tet_reg = map(tetpack.tetrahedron, [current_tet_str[5*i:5*i+5] for i in range(len(current_tet_str)/5)])
-    print 'done: \na = ' + str(current_tet_str.lattice.a) + '\nb = ' + str(current_tet_str.lattice.b) + '\nc = '  + str(current_tet_str.lattice.c) 
+        #Expand structure initally
+        print '\nExpanding cell axes by factor of ' + str(initial_increase_factor) + '...',
+        sys.stdout.flush()
+        current_tet_str = tetpack.adjust_axes(tet_str, initial_increase_factor)
+        current_tet_reg = map(tetpack.tetrahedron, [current_tet_str[5*i:5*i+5] for i in range(len(current_tet_str)/5)])
+        print 'done: \na = ' + str(current_tet_str.lattice.a) + '\nb = ' + str(current_tet_str.lattice.b) + '\nc = '  + str(current_tet_str.lattice.c) 
 
-    phi = tetpack.packing_density(current_tet_str)
-    print '\nRelaxing structure via Ewald summation...'
-    sys.stdout.flush()
-    current_tet_str = tetpack.ewald_relaxation(current_tet_str, max_steps = 1, motion_factor = temperature(phi, beta, initial_temp))
-
+        phi = tetpack.packing_density(current_tet_str)
+        print '\nRelaxing structure via Ewald summation...'
+        sys.stdout.flush()
+        current_tet_str = tetpack.ewald_relaxation(current_tet_str, max_steps = 1, motion_factor = temperature(phi, beta, initial_temp))
+    else:
+        path = filename.rstrip('.mson') + '_beta_' + str(beta) + '_T_' + str(initial_temp)
+        if not os.path.exists(path):
+            os.mkdir(path)
+        current_tet_str = initial_structure
+        current_tet_reg = map(tetpack.tetrahedron, [current_tet_str[5*i:5*i+5] for i in range(len(current_tet_str)/5)])
     print '\nBeginning compression loop:'
 
     #Loop until collision

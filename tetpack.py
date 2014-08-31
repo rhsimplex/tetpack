@@ -17,7 +17,7 @@ The tetpack module works like this:
 4. Remove duplicates (remove_duplicate_tets)
 5. Build regular tetrahedra. They are aligned to best match the tetrahedral cell they are drawn from, which of course is not regular (see the tetrahedron class)
 6. Add the perfect tetrahedra to a new periodic structure as methane -- C is the center, each H is a vertex (tetrahedron.add_to_structure)
-7. TO BE IMPLEMENTED -- compression, annealing...
+7. compression, annealing...see compression.py
 
 There is a convenience method tetrahedron_from_structure that combines steps 1-6. It takes a pymatgen structure object and returns a new structure with tetrahedra (methanes) and a list of tetrahedra objects:
 
@@ -30,8 +30,26 @@ tet_str, tet_reg = tetpack.tetrahedra_from_structure(gamma) #generate a new pyma
 pm.write_structure(tet_str, 'tet_str.cif')                  #export our methane tetrahedra to a CIF so we can view it in the crystallohraphic structure program of our choice!
 """
 def random_configuration(structure, n_tets):
-    #randomly distributes n_tets tetrahedra in structure
-    pass
+    #randomly distributes n_tets tetrahedra in structure 
+    empty_structure = structure.copy()
+    empty_structure.remove_sites(range(len(empty_structure.sites)))
+    return_structure = empty_structure.copy()
+    platonic_tetrahedron = 3**(1/3.)/2.*np.array([   [ 1.0,  1.0,  1.0],
+                                        [ 1.0, -1.0, -1.0],
+                                        [-1.0,  1.0, -1.0],
+                                        [-1.0, -1.0,  1.0]])
+    tets = []
+    for i in range(n_tets):
+        center = np.random.random(3)
+        empty_structure.append('C', center)
+        for j in range(4):
+            vertex = platonic_tetrahedron[j] + empty_structure[5*i].coords
+            empty_structure.append('H', vertex)
+        tets.append(tetrahedron(empty_structure[-5:]))
+        tets[-1].jostle(T=100., rotation_only=True)
+        tets[-1].regularize()
+        tets[-1].add_to_structure(return_structure)
+    return return_structure, tets
 
 def ewald_relaxation(structure, max_steps=3, motion_factor = 1.):
     #attempt to relax structure via computing ewald forces, moving coordinates, etc.
@@ -138,7 +156,7 @@ def tet_supercell(structure, tets, cutoff=2.0):
     return supercell
 
 def get_nearby_tets(tets, supercell_tets, radius=2.0):
-    #returns indices of tets in supercell whose centers lie within the radius of the centers of tets
+    #returns indices of tetrahedra in supercell whose centers lie within the radius of the centers of tets
     centers = np.zeros((len(supercell_tets), 3))
     i = 0
     neighbor_indices = []
