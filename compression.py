@@ -72,14 +72,14 @@ def main(filename = 'mp-1368.mson', beta = 1.0, initial_temp = 1.0):
             sys.stdout.flush()
             [tet.regularize() for tet in current_tet_reg]
             print 'done.'
-        current_tet_str, current_tet_reg = compress(current_tet_str, current_tet_reg, compression_factor)
-        print 'Step '+ str(step) + ' packing fraction: ' + str(phi) + '...',
+        current_tet_str, current_tet_reg = compress(current_tet_str, current_tet_reg,  temperature(phi, beta, initial_temp)*compression_factor)
+        print 'Step '+ str(step) + ' packing fraction: ' + str(phi) + ' T:' +  str(temperature(phi, beta, initial_temp)) + '...',
         sys.stdout.flush()
-        failed = check_and_resolve_collisions(current_tet_str, current_tet_reg, temperature(phi, beta, initial_temp), distance_max, resolution_max)
+        failed = check_and_resolve_collisions(current_tet_str, current_tet_reg, temperature(phi, beta, initial_temp), distance_max,  int(1./temperature(phi, beta, initial_temp)*resolution_max))
         if failed:
             print 'Relaxing structure...',
             sys.stdout.flush()
-            current_tet_str, current_tet_reg = compress(current_tet_str, current_tet_reg, -1.5*compression_factor)
+            current_tet_str, current_tet_reg = compress(current_tet_str, current_tet_reg, -1.5* temperature(phi, beta, initial_temp)* compression_factor)
             phi = tetpack.packing_density(current_tet_str)
             print 'done. Packing fraction: ' + str(phi)
             print 'Single-step Ewald relaxation...'
