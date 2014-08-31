@@ -354,9 +354,12 @@ class tetrahedron:
             return err
             
         #minimize error through rotation
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            min_angle = minimize(error, 0.0, bounds=(0.0, 2*pi)).x
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                min_angle = minimize(error, 0.0, bounds=(0.0, 2*pi)).x
+        except ValueError:
+            min_angle = 0.
 
         #rotate coords
         R_axis_angle(R, centered_tet[0], min_angle)
@@ -457,9 +460,12 @@ class tetrahedron:
             return err
             
         #minimize error through rotation
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            min_angle = minimize(error, 0.0, bounds=(0.0, 2*pi)).x
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                min_angle = minimize(error, 0.0, bounds=(0.0, 2*pi)).x
+        except ValueError:
+            min_angle=0.
 
         #rotate coords
         R_axis_angle(R, centered_tet[0], min_angle)
