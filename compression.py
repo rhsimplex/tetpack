@@ -156,7 +156,7 @@ def check_and_resolve_collisions(current_str, current_tet, temp, distance_max, r
     return failed
 
 if __name__ == "__main__":
-    if len(sys.argv) > 0:
+    if len(sys.argv) > 1:
         main(filename = sys.argv[1])
     else:
         main()
