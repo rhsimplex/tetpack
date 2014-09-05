@@ -10,10 +10,10 @@ This program attempts to pack tetrahdra starting from real solid-state structure
 3. Compress cell axes by small fixed percentage.
 4. Check for collisions.
 5. If there are collisions, attempt to resolve by randomly walking the tetrahedron in configuration space for N steps (six degrees of freedom: three translational, three rotational).
-6. If collisions cannot be resolved, relax structure -- increase cell axes and relax via Ewald summation.
+6. If collisions cannot be resolved, relax structure -- increase cell axes and relax via Ewald summation. Change parameters according to some temperature profile.
 7. Go to step 4.
 
-Currently, this algorithm hits a wall around 10% packing density (see https://github.com/rhsimplex/tetpack/blob/master/tetpack_results.pdf).  A number of possible improvements are described at the end of this document.
+Currently, this algorithm hits a wall around 14% packing density (see https://github.com/rhsimplex/tetpack/blob/master/tetpack_results.pdf).  A number of possible improvements are described at the end of this document.
 
 =======
 Installation and running:
@@ -46,10 +46,9 @@ In[1]: compression.main('mp-196.mson')
 =======
 Missing Features/Future improvements:
 
-1. Currently the compression loop contains no cooling profile -- that is, as the structure becomes more compressed, the allowed random motion/rotation of tetrahedra does not decrease. Neither does the Ewald relaxation step get smaller.
-2. Cell axes/angles cannot vary freely in this implementation, but only for simplicity.  Since symmetry is immediately broken by tetrahedra moving around, axes/angles ought to be able to move freely.
-3. Compression could be more Metropolis-like: any configuration resulting in collisions is currently rejected, but could be accepted with some probability related to the packing density change.
-4. Supercells.  The current best tetrahedral packings are non-periodic.
+1. Cell axes/angles cannot vary freely in this implementation, but only for simplicity.  Since symmetry is immediately broken by tetrahedra moving around, axes/angles ought to be able to move freely.
+2. Compression could be more Metropolis-like: any configuration resulting in collisions is currently rejected, but could be accepted with some probability related to the packing density change.
+3. Supercells.  The current best tetrahedral packings are non-periodic.
 5. ...
 
 =======
