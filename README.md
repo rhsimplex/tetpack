@@ -43,6 +43,18 @@ or in ipython:
 ```
 In[1]: compression.main('mp-196.mson')
 ```
+
+More sophisticated command-line arguments are not implemented yet.  You can do some other things (e.g. different temperature profiles) by calling the main method directly. From ipython:
+```
+In[1]: import compression
+In[2]: compression.main('random_AlCo.mson', beta=1.0, initial_temp = 0.5, precomputed_structure = True)
+```
+Starts with the 'random_AlCo' file, which is 24 tetrahedra randomly uniformly distributed in the Al5Co2 unit cell.  The algorithm 'cools' according to 
+```
+T = initial_temp * exp(-beta*phi)  
+```
+where phi is the current packing fraction.
+
 =======
 Missing Features/Future improvements:
 
